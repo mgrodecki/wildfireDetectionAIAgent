@@ -91,7 +91,7 @@ def test_check_zone_alerts_flags(load_module):
     assert any("EXTREME risk" in a for a in alerts)
 
 
-def test_fetch_weather_openweathermap_mock(load_module, dummy_zone, dummy_owm_response, monkeypatch):
+def test_fetch_weather_open_meteo_mock(load_module, dummy_zone, dummy_open_meteo_response, monkeypatch):
     agent = load_module()
 
     captured = {}
@@ -99,10 +99,9 @@ def test_fetch_weather_openweathermap_mock(load_module, dummy_zone, dummy_owm_re
     def dummy_get(url, timeout):
         captured["url"] = url
         captured["timeout"] = timeout
-        return dummy_owm_response
+        return dummy_open_meteo_response
 
     monkeypatch.setattr(agent, "REQUESTS_AVAILABLE", True)
-    monkeypatch.setattr(agent, "OPENWEATHER_API_KEY", "test-key")
     monkeypatch.setattr(agent, "requests", types.SimpleNamespace(get=dummy_get), raising=False)
     monkeypatch.setattr(
         agent,
@@ -118,9 +117,11 @@ def test_fetch_weather_openweathermap_mock(load_module, dummy_zone, dummy_owm_re
     assert weather["fuel_moisture"] == 7
     assert weather["slope_pct"] == 11
     assert weather["veg_density"] == 42
-    assert weather["source"] == "openweathermap"
-    assert "lat=1.0" in captured["url"]
-    assert "lon=2.0" in captured["url"]
+    assert weather["source"] == "open-meteo"
+    assert "latitude=1.0" in captured["url"]
+    assert "longitude=2.0" in captured["url"]
+    assert "temperature_unit=fahrenheit" in captured["url"]
+    assert "wind_speed_unit=mph" in captured["url"]
 
 
 
@@ -146,7 +147,8 @@ def test_fetch_firms_data_parses_csv(load_module, dummy_firms_response, monkeypa
     assert result["days"] == 1
     assert len(result["events"]) == 2
     assert result["events"][0]["latitude"] == "40.1"
-    assert "/VIIRS_SNPP_NRT/USA/1" in captured["url"]
+    assert "/api/area/csv/" in captured["url"]
+    assert "/VIIRS_SNPP_NRT/-125,24,-66,50/1" in captured["url"]
 
 
 def test_tool_get_recent_fires_limits(load_module, dummy_firms_response, monkeypatch):

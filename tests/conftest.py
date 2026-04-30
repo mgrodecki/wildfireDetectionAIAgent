@@ -36,9 +36,15 @@ def make_anthropic_stub(responses):
     return types.SimpleNamespace(Anthropic=lambda *a, **k: StubAnthropic(responses))
 
 
-class DummyOpenWeatherResponse:
+class DummyOpenMeteoResponse:
     def __init__(self, temp=88, humidity=22, wind_speed=12):
-        self._payload = {"main": {"temp": temp, "humidity": humidity}, "wind": {"speed": wind_speed}}
+        self._payload = {
+            "current": {
+                "temperature_2m": temp,
+                "relative_humidity_2m": humidity,
+                "wind_speed_10m": wind_speed,
+            }
+        }
 
     def raise_for_status(self):
         return None
@@ -85,8 +91,8 @@ def dummy_zone():
 
 
 @pytest.fixture
-def dummy_owm_response():
-    return DummyOpenWeatherResponse()
+def dummy_open_meteo_response():
+    return DummyOpenMeteoResponse()
 
 
 @pytest.fixture

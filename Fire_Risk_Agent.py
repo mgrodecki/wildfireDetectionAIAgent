@@ -1,4 +1,4 @@
-"""
+﻿"""
 Fire Risk AI Agent
 ==================
 Monitors fire risk conditions using real-time weather data and Claude AI or ChatGPT.
@@ -11,7 +11,6 @@ Usage:
     export ANTHROPIC_API_KEY=your_key_here
     export OPENAI_API_KEY=your_key_here      # optional, enables ChatGPT agent
     export OPENAI_MODEL=your_model_here      # optional, default set in code
-    export OPENWEATHER_API_KEY=your_key_here  # optional, enables real weather
     export FIRMS_API_KEY=your_key_here        # optional, enables NASA FIRMS fire data
     python Fire_Risk_Agent.py
 """
@@ -26,6 +25,10 @@ import requests
 from datetime import datetime, timedelta
 from typing import Any
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 try:
     import anthropic
     ANTHROPIC_AVAILABLE = True
@@ -38,7 +41,7 @@ try:
 except ImportError:
     OPENAI_AVAILABLE = False
 
-# ── Optional: real weather via OpenWeatherMap ─────────────────────────────────
+# ── Optional: real weather via Open-Meteo ─────────────────────────────────
 REQUESTS_AVAILABLE = True
 
 
@@ -48,8 +51,10 @@ REQUESTS_AVAILABLE = True
 
 ANTHROPIC_MODEL = "claude-sonnet-4-20250514"
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY", "")
 FIRMS_API_KEY = os.environ.get("FIRMS_API_KEY", "")
+FIRMS_AREAS = {
+    "USA": "-125,24,-66,50",
+}
 
 # Monitored zones (name, lat, lon)
 ZONES = [
@@ -89,26 +94,29 @@ def _simulate_weather(zone: dict) -> dict:
 
 
 def fetch_weather(zone: dict) -> dict:
-    """Fetch real weather if API key available, else fall back to simulation."""
-    if not REQUESTS_AVAILABLE or not OPENWEATHER_API_KEY:
+    """Fetch current weather from Open-Meteo, else fall back to simulation."""
+    if not REQUESTS_AVAILABLE:
         return _simulate_weather(zone)
     try:
         url = (
-            "https://api.openweathermap.org/data/2.5/weather"
-            f"?lat={zone['lat']}&lon={zone['lon']}"
-            f"&units=imperial&appid={OPENWEATHER_API_KEY}"
+            "https://api.open-meteo.com/v1/forecast"
+            f"?latitude={zone['lat']}&longitude={zone['lon']}"
+            "&current=temperature_2m,relative_humidity_2m,wind_speed_10m"
+            "&temperature_unit=fahrenheit&wind_speed_unit=mph"
         )
         r = requests.get(url, timeout=5)
         r.raise_for_status()
         d = r.json()
+        current = d["current"]
+        simulated = _simulate_weather(zone)
         return {
-            "temp_f":        d["main"]["temp"],
-            "humidity_pct":  d["main"]["humidity"],
-            "wind_mph":      d["wind"]["speed"],
-            "fuel_moisture": _simulate_weather(zone)["fuel_moisture"],  # not in OWM
-            "slope_pct":     _simulate_weather(zone)["slope_pct"],
-            "veg_density":   _simulate_weather(zone)["veg_density"],
-            "source":        "openweathermap",
+            "temp_f":        current["temperature_2m"],
+            "humidity_pct":  current["relative_humidity_2m"],
+            "wind_mph":      current["wind_speed_10m"],
+            "fuel_moisture": simulated["fuel_moisture"],  # not in Open-Meteo
+            "slope_pct":     simulated["slope_pct"],
+            "veg_density":   simulated["veg_density"],
+            "source":        "open-meteo",
         }
     except Exception:
         return _simulate_weather(zone)
@@ -122,9 +130,10 @@ def fetch_firms_data(days: int = 1, country: str = "USA", product: str = "VIIRS_
     if not FIRMS_API_KEY:
         return {"error": "FIRMS_API_KEY not set"}
 
+    area = FIRMS_AREAS.get(country.upper(), country)
     url = (
         "https://firms.modaps.eosdis.nasa.gov/api/area/csv/"
-        f"{FIRMS_API_KEY}/{product}/{country}/{days}"
+        f"{FIRMS_API_KEY}/{product}/{area}/{days}"
     )
     try:
         r = requests.get(url, timeout=10)
@@ -139,11 +148,12 @@ def fetch_firms_data(days: int = 1, country: str = "USA", product: str = "VIIRS_
             "source": "firms",
             "product": product,
             "country": country,
+            "area": area,
             "days": days,
             "events": events,
         }
     except Exception as exc:
-        return {"error": f"FIRMS request failed: {exc}"}
+        return {"error": f"FIRMS request failed: {type(exc).__name__}"}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -561,10 +571,10 @@ class FireRiskAgent:
     def __init__(self):
         self.client = anthropic.Anthropic()
         self.conversation_history: list[dict] = []
-        print("\n🔥 Fire Risk AI Agent initialized")
+        print("\nFire Risk AI Agent initialized")
         print(f"   Model  : {ANTHROPIC_MODEL}")
         print(f"   Zones  : {len(ZONES)}")
-        print(f"   Weather: {'OpenWeatherMap' if OPENWEATHER_API_KEY else 'Simulated'}\n")
+        print(f"   Weather: {'Open-Meteo' if REQUESTS_AVAILABLE else 'Simulated'}\n")
 
     def _agentic_loop(self, user_message: str) -> str:
         """Run the full tool-use loop until the model returns a final text response."""
@@ -618,7 +628,7 @@ class FireRiskAgent:
 
     def run_status_check(self):
         """Autonomous: pull all zone data and surface any critical alerts."""
-        print("\n── Automated status check ──────────────────────────────")
+        print("\n-- Automated status check ------------------------------")
         response = self.query(
             "Run a full status check across all zones. Summarize overall risk, "
             "highlight any zones at HIGH or EXTREME risk, list active alerts, "
@@ -629,7 +639,7 @@ class FireRiskAgent:
     def chat(self):
         """Interactive REPL — type questions, 'status' for a full check, 'quit' to exit."""
         print("=" * 60)
-        print("  Colorado Fire Risk AI Agent — Interactive Mode")
+        print("  Colorado Fire Risk AI Agent - Interactive Mode")
         print("=" * 60)
         print("Commands: 'status' = full check | 'clear' = reset | 'quit' = exit\n")
 
@@ -666,10 +676,10 @@ class ChatGPTFireRiskAgent:
             raise RuntimeError("openai package not installed. Run: pip install openai")
         self.client = OpenAI()
         self.conversation_history: list[dict] = []
-        print("\n🔥 ChatGPT Fire Risk Agent initialized")
+        print("\nChatGPT Fire Risk Agent initialized")
         print(f"   Model  : {OPENAI_MODEL}")
         print(f"   Zones  : {len(ZONES)}")
-        print(f"   Weather: {'OpenWeatherMap' if OPENWEATHER_API_KEY else 'Simulated'}\n")
+        print(f"   Weather: {'Open-Meteo' if REQUESTS_AVAILABLE else 'Simulated'}\n")
 
     def _agentic_loop(self, user_message: str) -> str:
         """Run the full tool-use loop until the model returns a final text response."""
@@ -734,7 +744,7 @@ class ChatGPTFireRiskAgent:
 
     def run_status_check(self):
         """Autonomous: pull all zone data and surface any critical alerts."""
-        print("\n── Automated status check ─────────────────────────────────")
+        print("\n-- Automated status check ---------------------------------")
         response = self.query(
             "Run a full status check across all zones. Summarize overall risk, "
             "highlight any zones at HIGH or EXTREME risk, list active alerts, "
@@ -745,7 +755,7 @@ class ChatGPTFireRiskAgent:
     def chat(self):
         """Interactive REPL — type questions, 'status' for a full check, 'quit' to exit."""
         print("=" * 60)
-        print("  Colorado Fire Risk AI Agent — Interactive Mode")
+        print("  Colorado Fire Risk AI Agent - Interactive Mode")
         print("=" * 60)
         print("Commands: 'status' = full check | 'clear' = reset | 'quit' = exit\n")
 
@@ -787,6 +797,7 @@ if __name__ == "__main__":
     # Demo: run one autonomous status check, then enter interactive mode
     agent.run_status_check()
     agent.chat()
+
 
 
 
