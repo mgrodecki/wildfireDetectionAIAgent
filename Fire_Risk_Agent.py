@@ -10,6 +10,7 @@ Requirements:
 Usage:
     export ANTHROPIC_API_KEY=your_key_here
     export OPENAI_API_KEY=your_key_here      # optional, enables ChatGPT agent
+    export ANTHROPIC_MODEL=your_model_here   # optional, default set in code
     export OPENAI_MODEL=your_model_here      # optional, default set in code
     export FIRMS_API_KEY=your_key_here        # optional, enables NASA FIRMS fire data
     python Fire_Risk_Agent.py
@@ -21,6 +22,7 @@ import time
 import math
 import csv
 import io
+import sys
 import requests
 from datetime import datetime, timedelta
 from typing import Any
@@ -28,6 +30,11 @@ from typing import Any
 from dotenv import load_dotenv
 
 load_dotenv()
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
 
 try:
     import anthropic
@@ -49,7 +56,7 @@ REQUESTS_AVAILABLE = True
 # Configuration
 # ─────────────────────────────────────────────────────────────────────────────
 
-ANTHROPIC_MODEL = "claude-sonnet-4-20250514"
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 FIRMS_API_KEY = os.environ.get("FIRMS_API_KEY", "")
 FIRMS_AREAS = {
