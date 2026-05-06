@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Colorado Fire Risk AI Agent</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Colorado Operations</p>
+          <h1>Fire Risk AI Agent</h1>
+        </div>
+        <div class="topbar-actions">
+          <button id="refreshBtn" class="icon-button" type="button" title="Refresh dashboard" aria-label="Refresh dashboard">
+            <span aria-hidden="true">↻</span>
+          </button>
+          <div class="status-pill" id="connectionStatus">Loading</div>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="overview" aria-label="Current risk overview">
+          <div class="metric-panel">
+            <span class="metric-label">Overall Risk</span>
+            <strong id="overallIndex">--</strong>
+            <span id="overallLabel" class="risk-label">--</span>
+          </div>
+          <div class="metric-panel">
+            <span class="metric-label">High Zones</span>
+            <strong id="highCount">--</strong>
+            <span>HIGH or EXTREME</span>
+          </div>
+          <div class="metric-panel">
+            <span class="metric-label">Active Alerts</span>
+            <strong id="alertCount">--</strong>
+            <span id="burnBanCount">-- burn bans</span>
+          </div>
+          <div class="metric-panel">
+            <span class="metric-label">Model</span>
+            <strong id="modelName">--</strong>
+            <span id="providerName">--</span>
+          </div>
+        </section>
+
+        <section class="map-and-chat">
+          <div class="map-panel">
+            <div class="section-heading">
+              <h2>Zone Map</h2>
+              <span id="lastUpdated">--</span>
+            </div>
+            <canvas id="zoneMap" width="900" height="520" aria-label="Colorado fire risk map"></canvas>
+          </div>
+
+          <aside class="chat-panel" aria-label="Agent chat">
+            <div class="section-heading">
+              <h2>Ask The Agent</h2>
+              <button id="clearChatBtn" class="text-button" type="button">Clear</button>
+            </div>
+            <div id="messages" class="messages" aria-live="polite">
+              <div class="message agent">
+                <div class="message-role">Agent</div>
+                <div class="message-body">Ask for a status check, a zone briefing, forecast concerns, or response recommendations.</div>
+              </div>
+            </div>
+            <form id="chatForm" class="chat-form">
+              <textarea id="questionInput" rows="3" placeholder="Run a full status check across all zones"></textarea>
+              <button id="sendBtn" type="submit">Send</button>
+            </form>
+          </aside>
+        </section>
+
+        <section class="detail-grid">
+          <div class="data-panel">
+            <div class="section-heading">
+              <h2>Zones</h2>
+              <span>Ranked by current index</span>
+            </div>
+            <div id="zoneList" class="zone-list"></div>
+          </div>
+
+          <div class="data-panel">
+            <div class="section-heading">
+              <h2>Alerts</h2>
+              <span>Operational notices</span>
+            </div>
+            <div id="alertsList" class="stack-list"></div>
+          </div>
+
+          <div class="data-panel">
+            <div class="section-heading">
+              <h2>Forecast</h2>
+              <span>3-day outlook</span>
+            </div>
+            <div id="forecastList" class="stack-list"></div>
+          </div>
+
+          <div class="data-panel">
+            <div class="section-heading">
+              <h2>Recent Fires</h2>
+              <span>NASA FIRMS sample</span>
+            </div>
+            <div id="firesList" class="stack-list"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
